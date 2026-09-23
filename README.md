@@ -27,20 +27,41 @@ This helped me keep my notes more organized in Obsidian, because I couldn't get 
 
   To use either of these scripts ;
 
-- Save a copy of the script onto your Desktop.
-- Export all of your Samsung Notes files as their SDOCX file type into a folder on your Desktop
-(( you can do this by file sharing from your phone, or you can use the Samsung Notes app on the Microsoft Store ))
-- Name the folder of all your SDOCX files you want to convert on your Desktop and name it: SDOCXfiles
--- If you want to convert your notes in batches, 
-and use the command that ends in --batch, instead of the other one. 
+- Download and Install Python if you haven't already: https://www.python.org/downloads/
+(( I am using version 3.14.6 for this, but the latest should be fine ))
 
-- Open Command Prompt as Administrator and run these 2 commands:
+- Save a copy of the script onto your Desktop.
+
+- Export all of your Samsung Notes files as their SDOCX file type into a folder on your Desktop.
+(( you can do this by file sharing from your phone, or you can use the Samsung Notes app on the Microsoft Store ))
+
+- Name the folder of all your SDOCX files you want to convert on your Desktop and name it: SDOCXfiles
+
+-- If you want to convert your notes in batches, create folders (folder name should not matter) within your SDOCXfiles folder of up to 100 notes each.
+and use the command that ends in --batch.
+
+- The commands will prompt whether you want to change the creation dates of your legacy notes to a custom date or keep the originals ((helpful as an alternative sorting solution)).
+
+___________
+
+- Open Command Prompt as Administrator and run this command to change your directory first:
+(( be sure to edit the command and add your computer's username ))
 
 cd C:\Users\*yourusername*\Desktop
 
+- Next, choose which version of the script you want to use, and use the command with --batch at the end, if you want to convert multiple folders of your SDOCX files at once. 
 
+Version 8 :
+python sdocx_to_markdown8.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput
+python sdocx_to_markdown8.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput --batch
+
+Version 9 :
+python sdocx_to_markdown9.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput
+python sdocx_to_markdown9.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput --batch
 
 ___________
+
+I hope this was as helpful for you as it was for me. 
 
 If you want to sync your Obsidian Notes between devices and never risk losing them, 
 you can use the same guide I did to get that set up here: 
