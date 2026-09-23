@@ -41,7 +41,7 @@ This helped me keep my notes more organized in Obsidian, because I couldn't get 
 - Download and Install Python if you haven't already: https://www.python.org/downloads/
 (( I am using version 3.14.6 for this, but the latest should be fine ))
 
-- Save a copy of the script you want to use onto your Desktop.
+- Save a copy of the .py script you want to use onto your Desktop.
 
 - Export all of your Samsung Notes files as their SDOCX file type into a folder on your Desktop.
 (( you can do this by file sharing from your phone, or you can use the Samsung Notes app on the Microsoft Store ))
