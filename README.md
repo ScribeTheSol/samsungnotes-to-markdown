@@ -1,4 +1,4 @@
-# samsungnotes-to-markdown
+# Guide to Converting Samsung Notes to Markdown files
 This is a solution to converting Samsung Notes (both the legacy format and the new format) to the universal and superior markdown file type, intended for Obsidian (my new preferred note taking app). 
 This converter also attempts to preserve timestamps to keep notes in order by the dates they were created and modified.
 Additionally, if any note does not have a title, a title will be generated using either the first 3 words of the text or the first 15 characters. 
