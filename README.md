@@ -11,10 +11,14 @@ There are two scripts which have different outputs, made for Windows OS.
 - Version 8 : Alongside creating titles for notes with and without titles, it also adds their creation date a the front of their title for sorting purposes.
 Personally, I think this looks overwhelming and inefficient, however the option is available for those who want it for maybe another note-taking app.
 
-- Version 9 : This removes the dates in the titles and adds sorting metadata into every note. 
+- Version 9 : This removes the dates in the titles and adds sorting metadata into every note.
+
 Every legacy file will have a metadata "tag:legacy-import" (which I believe is intended for sorting in Joplin).
+
 Additionally, this requires creating a file/note in Obsidian to sort all your notes automatically. (I never got this feature to work properly, but it exists)
+
 The file/note must be a markdown file type (.md) and named: sortspec
+
 And it must contain the following text:
 
 sorting-spec: |
