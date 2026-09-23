@@ -1,0 +1,449 @@
+"""
+Samsung Notes SDOCX -> Obsidian Markdown Converter
+--------------------------------------------------
+Converts a folder (or nested subfolders) of .sdocx files to Markdown
+files compatible with Obsidian, preserving original note creation dates
+via UUID1 decoding.
+
+Each output file is prefixed with YYYY-MM-DD so that Obsidian's
+alphabetical sort equals chronological order with no plugins needed.
+
+Filesystem timestamps are also set to match the note date so that
+Obsidian's native "Created time" sort works on desktop where Git
+preserves filesystem dates.
+
+SINGLE FOLDER MODE:
+    python sdocx_to_markdown.py <input_folder> <output_folder>
+    All .sdocx files in input_folder are converted into output_folder.
+
+BATCH MODE (subfolders):
+    python sdocx_to_markdown.py <input_folder> <output_folder> --batch
+    Each subfolder of input_folder is treated as a separate batch.
+    Output is mirrored into matching subfolders under output_folder.
+    The legacy date prompt is asked once per subfolder.
+
+Notes originally created as .snb/.snote files were batch-converted by
+Samsung to .sdocx around 2020-08-31, resetting their UUID timestamps.
+These "legacy" notes are tagged with "legacy-import" in front matter.
+
+Requirements: Python 3.6+, no third-party libraries needed.
+"""
+
+import os
+import sys
+import re
+import struct
+import uuid
+import zipfile
+import datetime
+
+
+# ---------------------------------------------------------------------------
+# Timestamp extraction
+# ---------------------------------------------------------------------------
+
+LEGACY_CONVERSION_CUTOFF = datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc)
+
+
+def decode_uuid1_timestamp(uuid_str):
+    """Extract creation datetime from a UUID version 1 string."""
+    try:
+        u = uuid.UUID(uuid_str)
+        if u.version == 1:
+            UUID_EPOCH = datetime.datetime(1582, 10, 15, tzinfo=datetime.timezone.utc)
+            dt = UUID_EPOCH + datetime.timedelta(microseconds=u.time // 10)
+            return dt
+    except Exception:
+        pass
+    return None
+
+
+def get_creation_datetime(zf):
+    """
+    Find the .page file inside the SDOCX zip and decode its UUID1 timestamp.
+    Returns (datetime_utc, is_legacy).
+    """
+    for name in zf.namelist():
+        if name.endswith('.page'):
+            basename = os.path.basename(name)
+            uuid_str = basename[:-5]
+            dt = decode_uuid1_timestamp(uuid_str)
+            if dt:
+                is_legacy = dt < LEGACY_CONVERSION_CUTOFF
+                return dt, is_legacy
+    return None, False
+
+
+# ---------------------------------------------------------------------------
+# Content extraction
+# ---------------------------------------------------------------------------
+
+def extract_utf16_fragments(raw, big_endian=False):
+    """Scan raw bytes for UTF-16 text fragments (min 4 printable chars)."""
+    fmt = '>H' if big_endian else '<H'
+    fragments = []
+    i = 0
+    current_chars = []
+    while i < len(raw) - 1:
+        word = struct.unpack_from(fmt, raw, i)[0]
+        if 0x20 <= word <= 0x7e or word in (0x0a, 0x0d):
+            current_chars.append(chr(word))
+        else:
+            if len(current_chars) >= 4:
+                fragments.append(''.join(current_chars))
+            current_chars = []
+        i += 2
+    if len(current_chars) >= 4:
+        fragments.append(''.join(current_chars))
+    return fragments
+
+
+def extract_text_from_note(zf):
+    """
+    Read note.note and extract text.
+    Native SDOCX = UTF-16LE. Legacy (.snb/.snote converted) = UTF-16BE.
+    Tries LE first, falls back to BE.
+    """
+    try:
+        raw = zf.read('note.note')
+    except KeyError:
+        return ''
+
+    fragments = extract_utf16_fragments(raw, big_endian=False)
+    if not fragments:
+        fragments = extract_utf16_fragments(raw, big_endian=True)
+
+    text = '\n'.join(fragments)
+    text = re.sub(r'^[_\s]+', '', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = text.strip()
+    return text
+
+
+# ---------------------------------------------------------------------------
+# Title extraction
+# ---------------------------------------------------------------------------
+
+def get_title_from_filename(sdocx_filename, content=''):
+    """
+    Extract note title from SDOCX filename.
+    Falls back to first 3 words / 15 chars of content for untitled notes.
+    """
+    base = os.path.splitext(os.path.basename(sdocx_filename))[0]
+    cleaned = re.sub(r'_\d{6}_\d{6}.*$', '', base)
+    title = cleaned.replace('_', ' ').strip()
+
+    if not title or title.lower() == 'notes':
+        if content:
+            first_line = ''
+            for line in content.splitlines():
+                line = line.strip().lstrip('-_:*# ')
+                if line:
+                    first_line = line
+                    break
+            if first_line:
+                words = first_line.split()
+                by_words = ' '.join(words[:3])
+                by_chars = first_line[:15]
+                excerpt = by_words if len(by_words) <= len(by_chars) else by_chars
+                title = excerpt.strip() + '...'
+
+    return title if title else 'Untitled'
+
+
+# ---------------------------------------------------------------------------
+# Markdown / front matter writer
+# ---------------------------------------------------------------------------
+
+def format_iso(dt):
+    """Format datetime as ISO 8601 string."""
+    return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def yaml_safe_title(title):
+    """Wrap title in double quotes, escaping internal double quotes."""
+    escaped = title.replace('\\', '\\\\').replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def build_markdown(title, created_dt, content, is_legacy=False):
+    """Build Markdown file string with front matter."""
+    ts = format_iso(created_dt)
+    tag_line = '\ntags:\n  - legacy-import' if is_legacy else ''
+    front_matter = f"""---
+title: {yaml_safe_title(title)}
+created: {ts}
+updated: {ts}{tag_line}
+---
+
+"""
+    return front_matter + content
+
+
+def make_output_filename(title):
+    """
+    Name the output file after the note title only.
+    Sorting is handled by the 'created' front matter field via the
+    Custom File Explorer Sorting plugin using:
+      < a-z by-metadata: created
+    """
+    safe_title = re.sub(r'[\\/*?:"<>|]', '_', title)
+    safe_title = safe_title[:80].strip()
+    return f"{safe_title}.md"
+
+
+# ---------------------------------------------------------------------------
+# Legacy date prompt
+# ---------------------------------------------------------------------------
+
+def prompt_legacy_date(folder_name, legacy_count):
+    """
+    Ask whether to assign a custom creation date to legacy notes in this batch.
+    Returns a datetime (UTC) or None to keep UUID timestamps as-is.
+    """
+    print()
+    print("=" * 60)
+    print(f"LEGACY NOTES IN: {folder_name}")
+    print("=" * 60)
+    print(f"  {legacy_count} notes have unreliable 2020-08-31 timestamps.")
+    print()
+    print("  1) Enter a custom date for this batch  (e.g. 2019-06-15)")
+    print("  2) Keep the 2020-08-31 timestamps as-is")
+    print()
+
+    while True:
+        choice = input("  Your choice (1 or 2): ").strip()
+        if choice == '2':
+            print("  Keeping original timestamps.")
+            return None
+        elif choice == '1':
+            break
+        else:
+            print("  Please enter 1 or 2.")
+
+    while True:
+        raw = input("  Enter date (YYYY-MM-DD): ").strip()
+        try:
+            dt = datetime.datetime.strptime(raw, '%Y-%m-%d').replace(
+                tzinfo=datetime.timezone.utc)
+            print(f"  Using {dt.date()} for all legacy notes in this batch.")
+            return dt
+        except ValueError:
+            print("  Invalid format. Please use YYYY-MM-DD (e.g. 2019-06-15).")
+
+
+# ---------------------------------------------------------------------------
+# Core conversion for a single batch of files
+# ---------------------------------------------------------------------------
+
+def convert_batch(sdocx_files, input_folder, output_folder, batch_name):
+    """
+    Convert a list of .sdocx files from input_folder into output_folder.
+    Prompts for legacy date override if legacy notes are present.
+    Returns a dict of counts for summary reporting.
+    """
+    os.makedirs(output_folder, exist_ok=True)
+    total = len(sdocx_files)
+
+    # Pre-scan for legacy notes
+    legacy_in_batch = 0
+    for fname in sdocx_files:
+        fpath = os.path.join(input_folder, fname)
+        try:
+            with zipfile.ZipFile(fpath, 'r') as zf:
+                _, is_legacy = get_creation_datetime(zf)
+                if is_legacy:
+                    legacy_in_batch += 1
+        except Exception:
+            pass
+
+    legacy_override_dt = None
+    if legacy_in_batch > 0:
+        print(f"\n  {legacy_in_batch} of {total} notes in '{batch_name}' are legacy.")
+        legacy_override_dt = prompt_legacy_date(batch_name, legacy_in_batch)
+
+    print(f"\n  Converting {total} notes in '{batch_name}'...")
+
+    success = 0
+    failed = 0
+    no_timestamp = 0
+    used_fallback = 0
+    legacy_count = 0
+
+    for i, fname in enumerate(sdocx_files, 1):
+        fpath = os.path.join(input_folder, fname)
+
+        try:
+            with zipfile.ZipFile(fpath, 'r') as zf:
+                created_dt, is_legacy = get_creation_datetime(zf)
+
+                if created_dt is None:
+                    match = re.search(r'_(\d{6})_(\d{6})$',
+                                      os.path.splitext(fname)[0])
+                    if match:
+                        try:
+                            created_dt = datetime.datetime.strptime(
+                                match.group(1) + match.group(2), '%y%m%d%H%M%S'
+                            ).replace(tzinfo=datetime.timezone.utc)
+                            used_fallback += 1
+                        except ValueError:
+                            pass
+                    if created_dt is None:
+                        created_dt = datetime.datetime.now(datetime.timezone.utc)
+                        no_timestamp += 1
+
+                if is_legacy:
+                    legacy_count += 1
+                    if legacy_override_dt is not None:
+                        created_dt = legacy_override_dt
+
+                content = extract_text_from_note(zf)
+                title = get_title_from_filename(fname, content)
+                md_content = build_markdown(title, created_dt, content, is_legacy)
+                out_name = make_output_filename(title)
+                out_path = os.path.join(output_folder, out_name)
+
+                if os.path.exists(out_path):
+                    base, ext = os.path.splitext(out_name)
+                    out_path = os.path.join(output_folder, f"{base}_{i}{ext}")
+
+                with open(out_path, 'w', encoding='utf-8') as f:
+                    f.write(md_content)
+
+                ts_epoch = created_dt.timestamp()
+                os.utime(out_path, (ts_epoch, ts_epoch))
+
+                success += 1
+
+        except Exception as e:
+            print(f"    ERROR processing {fname}: {e}")
+            failed += 1
+
+        if i % 100 == 0 or i == total:
+            print(f"    {i}/{total} processed...")
+
+    return {
+        'success': success,
+        'failed': failed,
+        'legacy': legacy_count,
+        'fallback': used_fallback,
+        'no_timestamp': no_timestamp,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Main entry points
+# ---------------------------------------------------------------------------
+
+def convert_single(input_folder, output_folder):
+    """Convert all .sdocx files in a single folder."""
+    sdocx_files = [f for f in os.listdir(input_folder)
+                   if f.lower().endswith('.sdocx')]
+    if not sdocx_files:
+        print("No .sdocx files found in input folder.")
+        return
+
+    print(f"Found {len(sdocx_files)} .sdocx files.")
+    counts = convert_batch(sdocx_files, input_folder, output_folder,
+                           os.path.basename(input_folder))
+    print_summary([counts], output_folder)
+
+
+def convert_batch_mode(input_folder, output_folder):
+    """
+    Process each subfolder of input_folder as a separate batch.
+    Root-level .sdocx files (if any) are also converted as one batch.
+    """
+    subfolders = sorted([
+        d for d in os.listdir(input_folder)
+        if os.path.isdir(os.path.join(input_folder, d))
+    ])
+    root_files = [f for f in os.listdir(input_folder)
+                  if f.lower().endswith('.sdocx')]
+
+    if not subfolders and not root_files:
+        print("No subfolders or .sdocx files found.")
+        return
+
+    all_counts = []
+
+    # Process root-level files first if any
+    if root_files:
+        print(f"\nRoot folder: {len(root_files)} .sdocx files found.")
+        root_out = os.path.join(output_folder, '_root')
+        counts = convert_batch(root_files, input_folder, root_out, 'root')
+        counts['folder'] = 'root'
+        all_counts.append(counts)
+
+    # Process each subfolder
+    for subfolder in subfolders:
+        sub_input = os.path.join(input_folder, subfolder)
+        sdocx_files = [f for f in os.listdir(sub_input)
+                       if f.lower().endswith('.sdocx')]
+        if not sdocx_files:
+            print(f"\nSkipping '{subfolder}' — no .sdocx files found.")
+            continue
+
+        print(f"\nBatch '{subfolder}': {len(sdocx_files)} .sdocx files found.")
+        sub_output = os.path.join(output_folder, subfolder)
+        counts = convert_batch(sdocx_files, sub_input, sub_output, subfolder)
+        counts['folder'] = subfolder
+        all_counts.append(counts)
+
+    print_summary(all_counts, output_folder)
+
+
+def print_summary(all_counts, output_folder):
+    """Print a summary of all batches."""
+    print("\n" + "=" * 60)
+    print("CONVERSION COMPLETE")
+    print("=" * 60)
+
+    total_success = 0
+    total_legacy = 0
+    total_failed = 0
+
+    for c in all_counts:
+        native = c['success'] - c['legacy'] - c['fallback'] - c['no_timestamp']
+        folder = c.get('folder', '')
+        label = f"  [{folder}]" if folder else " "
+        print(f"{label}")
+        print(f"    Converted:       {c['success']}")
+        print(f"    Native SDOCX:    {native}")
+        print(f"    Legacy notes:    {c['legacy']}")
+        if c['failed']:
+            print(f"    Errors:          {c['failed']}")
+        total_success += c['success']
+        total_legacy += c['legacy']
+        total_failed += c['failed']
+
+    print(f"\n  Total converted:  {total_success}")
+    print(f"  Total legacy:     {total_legacy}")
+    if total_failed:
+        print(f"  Total errors:     {total_failed}")
+    print(f"\n  Output folder: {output_folder}")
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+if __name__ == '__main__':
+    batch_mode = '--batch' in sys.argv
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+
+    if len(args) != 2:
+        print(__doc__)
+        sys.exit(1)
+
+    input_folder  = args[0]
+    output_folder = args[1]
+
+    if not os.path.isdir(input_folder):
+        print(f"Error: input folder not found: {input_folder}")
+        sys.exit(1)
+
+    if batch_mode:
+        convert_batch_mode(input_folder, output_folder)
+    else:
+        convert_single(input_folder, output_folder)
