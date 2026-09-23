@@ -23,11 +23,12 @@ The file/note must be a markdown file type (.md) and named: sortspec
 
 And it must contain the following text:
 
----
-sorting-spec: |
-  target-folder: /*
-  < a-z by-metadata: created
----
+
+	---
+	sorting-spec: |
+	  target-folder: /*
+	  < a-z by-metadata: created
+	---
 
 _______________________________________________________
 
