@@ -1,2 +1,52 @@
 # samsungnotes-to-markdown
-This is a solution to converting Samsung Notes (both the legacy format and the new format) to the universal and superior markdown file type, intended for Obsidian (my new preferred note taking app). This converter also attempts to perserve timestamps to keep notes in order by the dates they were created and modified.
+This is a solution to converting Samsung Notes (both the legacy format and the new format) to the universal and superior markdown file type, intended for Obsidian (my new preferred note taking app). 
+This converter also attempts to preserve timestamps to keep notes in order by the dates they were created and modified.
+Additionally, if any note does not have a title, a title will be generated using either the first 3 words of the text or the first 15 characters. 
+
+Fully transparency: I am not a programmer, this code was created using AI. 
+A solution to the caliber I required was not previously available, however I still wanted to share this tool with others who have 100's or 1000's of notes imprisoned on Samsung devices like I did.
+If there are any issues how I've set up Github or have any desire to reach out to me, you can email me at ScribeTheSol@gmail.com
+
+There are two scripts which have different outputs, made for Windows OS. 
+- Version 8 : Alongside creating titles for notes with and without titles, it also adds their creation date a the front of their title for sorting purposes.
+Personally, I think this looks overwhelming and inefficient, however the option is available for those who want it for maybe another note-taking app.
+
+- Version 9 : This removes the dates in the titles and adds sorting metadata into every note. However, this requires creating a file in Obsidian to sort the notes automatically. 
+The file must be named "sortspec".md
+And contain the following text:
+
+sorting-spec: |
+  target-folder: /*
+  < a-z by-metadata: created
+
+_______________________________________________________
+
+Lastly, I have included a command line option to convert folders of notes as 'batches'. 
+This helped me keep my notes more organized in Obsidian, because I couldn't get the sorting feature to work perfectly for the legacy notes.
+
+
+  To use either of these scripts ;
+
+- Save a copy of the script onto your Desktop.
+- Export all of your Samsung Notes files as their SDOCX file type into a folder on your Desktop
+(( you can do this by file sharing from your phone, or you can use the Samsung Notes app on the Microsoft Store ))
+- Name the folder of all your SDOCX files you want to convert on your Desktop and name it: SDOCXfiles
+-- If you want to convert your notes in batches, 
+and use the command that ends in --batch, instead of the other one. 
+
+- Open Command Prompt as Administrator and run these 2 commands:
+
+cd C:\Users\*yourusername*\Desktop
+
+
+
+___________
+
+If you want to sync your Obsidian Notes between devices and never risk losing them, 
+you can use the same guide I did to get that set up here: 
+https://www.youtube.com/watch?v=ImrLbomFYA0
+
+
+
+
+
