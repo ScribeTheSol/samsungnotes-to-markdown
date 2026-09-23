@@ -8,8 +8,10 @@ A solution to my problem was not previously available, and now I want to share t
 If there are any issues with how I've set up Github or have any desire to reach out to me, you can email me at ScribeTheSol@gmail.com
 
 There are two scripts which have different outputs, made for Windows OS. 
+
 - Version 8 : Alongside creating titles for notes with and without titles, it also adds their creation date a the front of their title for sorting purposes.
 Personally, I think this looks overwhelming and inefficient, however the option is available for those who want it for maybe another note-taking app.
+
 
 - Version 9 : This removes the dates in the titles and adds sorting metadata into every note.
 
@@ -61,13 +63,16 @@ ___________
 Version 8 :
 
 	python sdocx_to_markdown8.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput
+or
 
 	python sdocx_to_markdown8.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput --batch
+
 
 Version 9 :
 
 	python sdocx_to_markdown9.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput
-	
+or
+
 	python sdocx_to_markdown9.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput --batch
 
 ___________
