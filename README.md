@@ -4,8 +4,8 @@ This converter also attempts to preserve timestamps to keep notes in order by th
 Additionally, if any note does not have a title, a title will be generated using either the first 3 words of the text or the first 15 characters. 
 
 Fully transparency: I am not a programmer, this code was created using AI. 
-A solution to the caliber I required was not previously available, however I still wanted to share this tool with others who have 100's or 1000's of notes imprisoned on Samsung devices like I did.
-If there are any issues how I've set up Github or have any desire to reach out to me, you can email me at ScribeTheSol@gmail.com
+A solution to my problem was not previously available, and now I want to share this tool with others who have 100's or 1000's of notes imprisoned on Samsung devices like I did.
+If there are any issues with how I've set up Github or have any desire to reach out to me, you can email me at ScribeTheSol@gmail.com
 
 There are two scripts which have different outputs, made for Windows OS. 
 - Version 8 : Alongside creating titles for notes with and without titles, it also adds their creation date a the front of their title for sorting purposes.
