@@ -59,24 +59,24 @@ ___________
 - Open Command Prompt as Administrator and run this command to change your directory first:
 (( be sure to edit the command and add your computer's username ))
 
-		cd C:\Users\*yourusername*\Desktop
+		cd C:\Users\yourusername\Desktop
 
 - Next, choose which version of the script you want to use, and use the command with --batch at the end if you want to convert multiple folders of your SDOCX files at once. 
 
 Version 8 :
 
-	python sdocx_to_markdown8.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput
+	python sdocx_to_markdown8.py C:\Users\yourusername\Desktop\SDOCXfiles C:\Users\yourusername\Desktop\MarkdownOutput
 or
 
-	python sdocx_to_markdown8.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput --batch
+	python sdocx_to_markdown8.py C:\Users\yourusername\Desktop\SDOCXfiles C:\Users\yourusername\Desktop\MarkdownOutput --batch
 
 
 Version 9 :
 
-	python sdocx_to_markdown9.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput
+	python sdocx_to_markdown9.py C:\Users\yourusername\Desktop\SDOCXfiles C:\Users\yourusername\Desktop\MarkdownOutput
 or
 
-	python sdocx_to_markdown9.py C:\Users\ryans\Desktop\SDOCXfiles C:\Users\ryans\Desktop\MarkdownOutput --batch
+	python sdocx_to_markdown9.py C:\Users\yourusername\Desktop\SDOCXfiles C:\Users\yourusername\Desktop\MarkdownOutput --batch
 
 ___________
 
@@ -90,6 +90,12 @@ you can use the same guide I did to get that set up here:
 https://www.youtube.com/watch?v=ImrLbomFYA0
 
 
+_____________
 
+EDIT: I have also added the ability to convert Google Docs .docx files into markdown as well. 
+The process is the same: 
+
+	cd C:\Users\yourusername\Desktop
+	python docx_to_markdown2.py C:\Users\yourusername\Desktop\DOCXfiles C:\Users\yourusername\Desktop\MarkdownOutput --batch
 
 
